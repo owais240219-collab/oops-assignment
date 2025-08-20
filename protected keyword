@@ -1,0 +1,45 @@
+package owais;
+
+
+public class User {
+ protected String username;
+ protected String email;
+
+ public User(String username, String email) {
+     this.username = username;
+     this.email = email;
+ }
+
+ protected void displayInfo() {
+     System.out.println("Username: " + username);
+     System.out.println("Email: " + email);
+ }
+}
+//File: Admin.java
+public class Admin extends User {
+
+ private String role;
+
+ public Admin(String username, String email, String role) {
+     super(username, email);
+     this.role = role;
+ }
+
+ public void showAdminInfo() {
+     
+     System.out.println("Admin Info:");
+     displayInfo(); 
+     System.out.println("Role: " + role);
+ }
+}
+
+//File: Main.java
+public class Main {
+ public static void main(String[] args) {
+     Admin admin = new Admin("adminUser", "Owais@gmail.com", "SuperAdmin");
+     admin.showAdminInfo();
+     
+    
+ }
+}
+
