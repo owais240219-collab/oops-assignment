@@ -1,0 +1,132 @@
+import java.util.ArrayList;
+import java.util.Scanner;
+
+/**
+ * SimpleNotesApp provides a command-line interface (CLI) for managing notes.
+ * Notes are stored in an ArrayList and are not persisted (they disappear when the program exits).
+ */
+public class SimpleNotesApp {
+
+    // List to store all notes as strings
+    private static ArrayList<String> notes = new ArrayList<>();
+    
+    // Scanner for reading user input from the console
+    private static Scanner scanner = new Scanner(System.in);
+
+    public static void main(String[] args) {
+        System.out.println("--- Welcome to the Simple Java Notes App ---");
+        
+        // Main application loop
+        boolean running = true;
+        while (running) {
+            displayMenu();
+            if (scanner.hasNextInt()) {
+                int choice = scanner.nextInt();
+                scanner.nextLine(); // Consume the newline character after reading the integer
+                
+                switch (choice) {
+                    case 1:
+                        addNote();
+                        break;
+                    case 2:
+                        viewNotes();
+                        break;
+                    case 3:
+                        deleteNote();
+                        break;
+                    case 4:
+                        running = false;
+                        System.out.println("Thank you for using the Notes App. Goodbye!");
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Please enter a number between 1 and 4.");
+                }
+            } else {
+                System.out.println("Invalid input. Please enter a valid menu option.");
+                scanner.nextLine(); // Consume invalid input
+            }
+            System.out.println("\n--------------------------------------------\n");
+        }
+        
+        scanner.close(); // Close the scanner when the application exits
+    }
+
+    /**
+     * Displays the main menu options to the user.
+     */
+    private static void displayMenu() {
+        System.out.println("Please choose an action:");
+        System.out.println("1. Add a new note");
+        System.out.println("2. View all notes");
+        System.out.println("3. Delete a note");
+        System.out.println("4. Exit");
+        System.out.print("Enter your choice (1-4): ");
+    }
+
+    /**
+     * Prompts the user for a note and adds it to the list.
+     */
+    private static void addNote() {
+        System.out.println("--- ADD NEW NOTE ---");
+        System.out.print("Enter your note content: ");
+        // Read the full line of input
+        String newNote = scanner.nextLine().trim(); 
+
+        if (!newNote.isEmpty()) {
+            notes.add(newNote);
+            System.out.println("Note added successfully!");
+        } else {
+            System.out.println("Note content cannot be empty. Note was not added.");
+        }
+    }
+
+    /**
+     * Prints all stored notes to the console.
+     */
+    private static void viewNotes() {
+        System.out.println("--- ALL NOTES ---");
+        if (notes.isEmpty()) {
+            System.out.println("You currently have no notes.");
+            return;
+        }
+
+        // Iterate through the list and print each note with its index
+        for (int i = 0; i < notes.size(); i++) {
+            // Index is displayed starting from 1 for user readability
+            System.out.printf("[%d] %s\n", (i + 1), notes.get(i));
+        }
+    }
+
+    /**
+     * Prompts the user for a note index and removes it from the list.
+     */
+    private static void deleteNote() {
+        viewNotes(); // Show the notes with their indices first
+        
+        if (notes.isEmpty()) {
+            return;
+        }
+
+        System.out.println("--- DELETE NOTE ---");
+        System.out.print("Enter the number of the note you want to delete: ");
+        
+        if (scanner.hasNextInt()) {
+            // User input is 1-based, so subtract 1 for the 0-based list index
+            int noteNumberToDelete = scanner.nextInt();
+            scanner.nextLine(); // Consume the newline
+
+            int indexToDelete = noteNumberToDelete - 1;
+
+            if (indexToDelete >= 0 && indexToDelete < notes.size()) {
+                String deletedNote = notes.remove(indexToDelete);
+                System.out.println("Successfully deleted note:");
+                System.out.println("-> " + deletedNote);
+            } else {
+                System.out.println("Invalid note number. Please try again.");
+            }
+        } else {
+            System.out.println("Invalid input. Please enter a number.");
+            scanner.nextLine(); // Consume invalid input
+        }
+    }
+}
