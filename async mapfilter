@@ -1,0 +1,58 @@
+package owais;
+
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
+import java.util.stream.*;
+
+public class AsyncMapFilterReduce {
+
+    private static final ExecutorService executor = Executors.newFixedThreadPool(4);
+
+    public static void main(String[] args) throws Exception {
+        List<Integer> input = List.of(3, 6, 8, 10, 12, 14);
+
+        List<CompletableFuture<Integer>> mappedFutures = input.stream()
+            .map(i -> CompletableFuture.supplyAsync(() -> {
+                
+                sleep(100);
+                return i * 2;  
+            }, executor))
+            .collect(Collectors.toList());
+
+
+        CompletableFuture<List<Integer>> allMapped =
+            sequence(mappedFutures);
+
+        CompletableFuture<Optional<Integer>> reduced = allMapped.thenApply(list ->
+            list.stream()
+                .filter(x -> x > 10)            
+                .reduce(Integer::sum)           
+        );
+
+
+        Optional<Integer> result = reduced.get();
+        System.out.println("Sum of doubled values >10 = " + result.orElse(0));
+
+        executor.shutdown();
+    }
+
+    private static void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    public static <T> CompletableFuture<List<T>> sequence(List<CompletableFuture<T>> futures) {
+        CompletableFuture<Void> allDone =
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        return allDone.thenApply(v ->
+            futures.stream()
+                   .map(CompletableFuture::join)
+                   .collect(Collectors.toList())
+        );
+    }
+}
+
