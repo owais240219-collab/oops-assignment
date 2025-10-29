@@ -1,0 +1,445 @@
+package miniproject;
+
+import java.util.List;
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Warehouse warehouse = new Warehouse();
+
+        Scanner scanner = new Scanner(System.in);
+        boolean running = true;
+
+        while (running) {
+            System.out.println("\nWarehouse Order Fulfillment System");
+            System.out.println("1. View Inventory");
+            System.out.println("2. Add Inventory Item");
+            System.out.println("3. Remove Inventory Item");
+            System.out.println("4. Place Order");
+            System.out.println("5. List Orders");
+            System.out.println("6. Cancel Order");
+            System.out.println("7. Dispatch Order");
+            System.out.println("8. Exit");
+            System.out.print("Select option: ");
+            String choice = scanner.nextLine();
+
+            switch (choice) {
+                case "1":
+                    warehouse.getInventory().listAllItems();
+                    break;
+
+                case "2":
+                    System.out.print("Enter new item ID: ");
+                    String newItemId = scanner.nextLine();
+                    System.out.print("Enter item name: ");
+                    String newName = scanner.nextLine();
+                    System.out.print("Enter initial quantity: ");
+                    int newQty = Integer.parseInt(scanner.nextLine());
+                    System.out.print("Enter unit price: ");
+                    double newPrice = Double.parseDouble(scanner.nextLine());
+                    try {
+                        warehouse.getInventory().addItem(new Item(newItemId, newName, newQty, newPrice));
+                    } catch (Exception e) {
+                        System.out.println("Error adding item: " + e.getMessage());
+                    }
+                    break;
+
+                case "3":
+                    System.out.print("Enter item ID to remove: ");
+                    String removeId = scanner.nextLine();
+                    try {
+                        warehouse.getInventory().removeItem(removeId);
+                    } catch (Exception e) {
+                        System.out.println("Error removing item: " + e.getMessage());
+                    }
+                    break;
+
+                case "4":
+                    System.out.print("Enter order ID: ");
+                    String oid = scanner.nextLine();
+                    Order order = new Order(oid);
+                    System.out.print("Enter item ID: ");
+                    String itemId = scanner.nextLine();
+                    System.out.print("Enter quantity: ");
+                    int qty = Integer.parseInt(scanner.nextLine());
+                    order.addItem(itemId, qty);
+                    try {
+                        warehouse.placeOrder(order);
+                        System.out.println("Order placed: " + order);
+                    } catch (Exception e) {
+                        System.out.println("Error placing order: " + e.getMessage());
+                    }
+                    break;
+
+                case "5":
+                    List<Order> orders = warehouse.getOrders();
+                    if (orders.isEmpty()) {
+                        System.out.println("No orders found.");
+                    } else {
+                        orders.forEach(System.out::println);
+                    }
+                    break;
+
+                case "6":
+                    System.out.print("Enter order ID to cancel: ");
+                    String cancelId = scanner.nextLine();
+                    boolean foundCancel = false;
+                    for (Order o : warehouse.getOrders()) {
+                        if (o.getOrderId().equals(cancelId)) {
+                            warehouse.cancelOrder(o);
+                            foundCancel = true;
+                            break;
+                        }
+                    }
+                    if (!foundCancel) {
+                        System.out.println("Order ID not found: " + cancelId);
+                    }
+                    break;
+
+                case "7":
+                    System.out.print("Enter order ID to dispatch: ");
+                    String dispId = scanner.nextLine();
+                    boolean foundDisp = false;
+                    for (Order o : warehouse.getOrders()) {
+                        if (o.getOrderId().equals(dispId)) {
+                            try {
+                                warehouse.dispatchOrder(o);
+                            } catch (Exception e) {
+                                System.out.println("Error: " + e.getMessage());
+                            }
+                            foundDisp = true;
+                            break;
+                        }
+                    }
+                    if (!foundDisp) {
+                        System.out.println("Order ID not found: " + dispId);
+                    }
+                    break;
+
+                case "8":
+                    running = false;
+                    System.out.println("Exiting…");
+                    break;
+
+                default:
+                    System.out.println("Invalid choice.");
+                    break;
+            }
+        }
+
+        scanner.close();
+    }
+}
+
+package miniproject;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class Inventory {
+    private Map<String, Item> items;
+
+    public Inventory() {
+        items = new HashMap<>();
+    }
+
+    public void addItem(Item item) {
+        if (items.containsKey(item.getItemId())) {
+            throw new IllegalArgumentException("Item already exists with ID " + item.getItemId());
+        }
+        items.put(item.getItemId(), item);
+        System.out.println("Item added: " + item);
+    }
+
+    public Item getItemById(String itemId) {
+        return items.get(itemId);
+    }
+
+    public void removeItem(String itemId) {
+        if (!items.containsKey(itemId)) {
+            throw new IllegalArgumentException("No such item ID " + itemId);
+        }
+        Item removed = items.remove(itemId);
+        System.out.println("Item removed: " + removed);
+    }
+
+    public void reduceItemStock(String itemId, int amount) {
+        Item item = getItemById(itemId);
+        if (item == null) {
+            throw new IllegalArgumentException("No such item: " + itemId);
+        }
+        item.reduceStock(amount);
+    }
+
+    public boolean isItemAvailable(String itemId, int requiredQuantity) {
+        Item item = getItemById(itemId);
+        return (item != null && item.getQuantityInStock() >= requiredQuantity);
+    }
+
+    public void listAllItems() {
+        if (items.isEmpty()) {
+            System.out.println("Inventory is empty.");
+        } else {
+            items.values().forEach(System.out::println);
+        }
+    }
+}
+
+package miniproject;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+public class Order {
+    public enum OrderStatus {
+        PLACED, PICKED, PACKED, DISPATCHED, CANCELLED
+    }
+
+    private String orderId;
+    private Map<String, Integer> itemQuantities;  // itemId -> quantity
+    private LocalDateTime timePlaced;
+    private OrderStatus status;
+
+    public Order(String orderId) {
+        this.orderId = orderId;
+        this.itemQuantities = new HashMap<>();
+        this.timePlaced = LocalDateTime.now();
+        this.status = OrderStatus.PLACED;
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public void addItem(String itemId, int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
+        itemQuantities.put(itemId, itemQuantities.getOrDefault(itemId, 0) + quantity);
+    }
+
+    public Map<String, Integer> getItemQuantities() {
+        return itemQuantities;
+    }
+
+    public LocalDateTime getTimePlaced() {
+        return timePlaced;
+    }
+
+    public OrderStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(OrderStatus newStatus) {
+        this.status = newStatus;
+    }
+
+    @Override
+    public String toString() {
+        return "Order{" +
+               "orderId='" + orderId + '\'' +
+               ", itemQuantities=" + itemQuantities +
+               ", timePlaced=" + timePlaced +
+               ", status=" + status +
+               '}';
+    }
+}
+
+package miniproject;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class Warehouse {
+    private Inventory inventory;
+    private List<Order> orders;
+
+    public Warehouse() {
+        this.inventory = new Inventory();
+        this.orders = new ArrayList<>();
+    }
+
+    public Inventory getInventory() {
+        return inventory;
+    }
+
+    public List<Order> getOrders() {
+        return orders;
+    }
+
+    public Order placeOrder(Order order) {
+        // Check availability for all items in the order
+        for (var entry : order.getItemQuantities().entrySet()) {
+            String itemId = entry.getKey();
+            int qty = entry.getValue();
+            if (!inventory.isItemAvailable(itemId, qty)) {
+                throw new IllegalStateException("Item " + itemId + " not available in required quantity");
+            }
+        }
+        // Reserve or reduce stock
+        for (var entry : order.getItemQuantities().entrySet()) {
+            inventory.reduceItemStock(entry.getKey(), entry.getValue());
+        }
+        order.setStatus(Order.OrderStatus.PICKED);
+        orders.add(order);
+        return order;
+    }
+
+    public void cancelOrder(Order order) {
+        if (!orders.contains(order)) {
+            throw new IllegalArgumentException("Order not found: " + order.getOrderId());
+        }
+        order.setStatus(Order.OrderStatus.CANCELLED);
+        System.out.println("Order cancelled: " + order);
+    }
+
+    public void dispatchOrder(Order order) {
+        if (order.getStatus() != Order.OrderStatus.PICKED && order.getStatus() != Order.OrderStatus.PACKED) {
+            throw new IllegalStateException("Cannot dispatch an order that is not in PICKED or PACKED status");
+        }
+        order.setStatus(Order.OrderStatus.DISPATCHED);
+        System.out.println("Order dispatched: " + order);
+    }
+
+    public void listOrders() {
+        if (orders.isEmpty()) {
+            System.out.println("No orders to display.");
+        } else {
+            orders.forEach(System.out::println);
+        }
+    }
+}
+
+package miniproject;
+
+import java.util.List;
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Warehouse warehouse = new Warehouse();
+
+        Scanner scanner = new Scanner(System.in);
+        boolean running = true;
+
+        while (running) {
+            System.out.println("\nWarehouse Order Fulfillment System");
+            System.out.println("1. View Inventory");
+            System.out.println("2. Add Inventory Item");
+            System.out.println("3. Remove Inventory Item");
+            System.out.println("4. Place Order");
+            System.out.println("5. List Orders");
+            System.out.println("6. Cancel Order");
+            System.out.println("7. Dispatch Order");
+            System.out.println("8. Exit");
+            System.out.print("Select option: ");
+            String choice = scanner.nextLine();
+
+            switch (choice) {
+                case "1":
+                    warehouse.getInventory().listAllItems();
+                    break;
+
+                case "2":
+                    System.out.print("Enter new item ID: ");
+                    String newItemId = scanner.nextLine();
+                    System.out.print("Enter item name: ");
+                    String newName = scanner.nextLine();
+                    System.out.print("Enter initial quantity: ");
+                    int newQty = Integer.parseInt(scanner.nextLine());
+                    System.out.print("Enter unit price: ");
+                    double newPrice = Double.parseDouble(scanner.nextLine());
+                    try {
+                        warehouse.getInventory().addItem(new Item(newItemId, newName, newQty, newPrice));
+                    } catch (Exception e) {
+                        System.out.println("Error adding item: " + e.getMessage());
+                    }
+                    break;
+
+                case "3":
+                    System.out.print("Enter item ID to remove: ");
+                    String removeId = scanner.nextLine();
+                    try {
+                        warehouse.getInventory().removeItem(removeId);
+                    } catch (Exception e) {
+                        System.out.println("Error removing item: " + e.getMessage());
+                    }
+                    break;
+
+                case "4":
+                    System.out.print("Enter order ID: ");
+                    String oid = scanner.nextLine();
+                    Order order = new Order(oid);
+                    System.out.print("Enter item ID: ");
+                    String itemId = scanner.nextLine();
+                    System.out.print("Enter quantity: ");
+                    int qty = Integer.parseInt(scanner.nextLine());
+                    order.addItem(itemId, qty);
+                    try {
+                        warehouse.placeOrder(order);
+                        System.out.println("Order placed: " + order);
+                    } catch (Exception e) {
+                        System.out.println("Error placing order: " + e.getMessage());
+                    }
+                    break;
+
+                case "5":
+                    List<Order> orders = warehouse.getOrders();
+                    if (orders.isEmpty()) {
+                        System.out.println("No orders found.");
+                    } else {
+                        orders.forEach(System.out::println);
+                    }
+                    break;
+
+                case "6":
+                    System.out.print("Enter order ID to cancel: ");
+                    String cancelId = scanner.nextLine();
+                    boolean foundCancel = false;
+                    for (Order o : warehouse.getOrders()) {
+                        if (o.getOrderId().equals(cancelId)) {
+                            warehouse.cancelOrder(o);
+                            foundCancel = true;
+                            break;
+                        }
+                    }
+                    if (!foundCancel) {
+                        System.out.println("Order ID not found: " + cancelId);
+                    }
+                    break;
+
+                case "7":
+                    System.out.print("Enter order ID to dispatch: ");
+                    String dispId = scanner.nextLine();
+                    boolean foundDisp = false;
+                    for (Order o : warehouse.getOrders()) {
+                        if (o.getOrderId().equals(dispId)) {
+                            try {
+                                warehouse.dispatchOrder(o);
+                            } catch (Exception e) {
+                                System.out.println("Error: " + e.getMessage());
+                            }
+                            foundDisp = true;
+                            break;
+                        }
+                    }
+                    if (!foundDisp) {
+                        System.out.println("Order ID not found: " + dispId);
+                    }
+                    break;
+
+                case "8":
+                    running = false;
+                    System.out.println("Exiting…");
+                    break;
+
+                default:
+                    System.out.println("Invalid choice.");
+                    break;
+            }
+        }
+
+        scanner.close();
+    }
+}
